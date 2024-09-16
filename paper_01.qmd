@@ -1,0 +1,295 @@
+---
+title: "Atlantic will tear us apart: sand provenance correlation of Early Cretaceous aeolian strata from the conjugate margins of Africa and South America"
+format: pdf
+warning: FALSE
+editor: visual
+---
+
+**Bertolini**, G. **1**; **Scherer**, C.M.S. **2**; **Marques**, J.C. **2**; **Reis**, A.R. **3**; **Hartley**. A.J. **4**; Je**r**ram, D.J. **5**; **Howell**, J.A. **4**, **Santos**, J.M.M. **2**; **Basei**, M.A.S. **6**; **Paim**, J.C. **2**
+
+1.  University of British Columbia (Canada)
+
+2.  Universidade Federal do Rio Grande do Sul (Brazil)
+
+3.  Universidade de Brasilia (Brazil)
+
+4.  University of Aberdeen (UK)
+
+5.  DougalEarth Ltd
+
+6.  Universidade de São Paulo
+
+R Codes to reproduce the plots from the manuscript "*Atlantic will tear us apart: sand provenance correlation of Early Cretaceous aeolian strata from the conjugate margins of Africa and South America*" in review in Basin Research.
+
+# Abstract
+
+The Twyfelfountein Formation in Namibia and the Botucatu Formation in East South America represent a single dune-field separated through rifting of Gondwana during the Cretaceous. The Early Cretaceous Botucatu desert was the last depositional system operating in the Gondwanan heartland prior to continental drift initiated by the Paraná-Etendeka large igneous province. The dry-aeolian dunes, draas and sandsheet deposits of the Botucatu Formation are also present in the Twyfelfountein Formation. We aim to test whether the two formations had a similar provenance. The provenance of the Twyfelfountein is established using a multiproxy dataset including petrography, grain-size, heavy mineral composition and geochemistry, and detrital zircon U-Pb dating (16 samples from 5 sites in the Huab Basin, Namibia). Results indicate dominantly fine-to-medium feldspatho-quartose sands, rich in resistate minerals such as tourmaline, garnet and Fe-Ti oxides. Detrital zircon ages yielded mostly Cambrian-Neoproterozoic (450 to 650 Ma) ages. The geochemistry of garnet and tourmalines shows that these grains are originally sourced from amphibolite-facies metasedimentary rocks and acidic granitoids. The Botucatu Formation typically comprises sands that are quartzose, fine-medium sized, ZTR-rich with a predominance of Neoproterozoic detrital zircon ages. Based in this work and previously published data, the Twyfelfountein Formation sands are considered very similar to those of the Botucatu Formation, demonstrating a similar provenance for, and supporting the correlation of both units. The sands of the palaeodesert were derived from reworking of underlying strata from the Paraná and Huab basins. Furthermore, comparison of the datasets for both the Twyfelfountein and Botucatu formations shows a trend from SW to SE in sand composition due to the changes in the composition of the underlying pre-desert strata.
+
+## Libraries
+
+Most packages are available on CRAN, so install.package() will work. Library ggarnet is found at
+
+```{r,echo=FALSE}
+library(tidyverse)
+library(patchwork)
+library(ggtern)
+library(readxl)
+library(ggrepel)
+
+# Provenance
+library(ggarnet)
+library(provenance)
+
+#Spatial
+library(sf)
+library(ggdal)
+library(ggspatial)
+```
+
+## Import
+
+```{r}
+LOC<-read_excel("./paper/data.xlsx",sheet=1)
+PT<-read_excel("./paper/data.xlsx",sheet=2)
+GS<-read_excel("./paper/data.xlsx",sheet=3)
+HM<-read_excel("./paper/data.xlsx",sheet=4)
+TUR<-read_excel("./paper/data.xlsx",sheet=5)
+GT<-read_excel("./paper/data.xlsx",sheet=6)
+DZ<-read_excel("./paper/data.xlsx",sheet=7)
+DZ_ALL<-read_excel("./paper/data.xlsx",sheet=8)
+TUR_ALL<-read_excel("./paper/data.xlsx",sheet=9)
+GT_ALL<-read_excel("./paper/data.xlsx",sheet=10)
+```
+
+# 1. Maps
+
+Sample location with geographic coordinates (WGS-84), in north Namibia.
+
+```{r}
+LOCATION<-LOC %>% 
+  st_as_sf(coords=c("S","E"),crs=4326) # WGS84 coordinate reference system (EPSG::4326)
+
+ggplot()+
+  annotation_gdal(dsn = "virtualearth") +
+  geom_sf(data=LOCATION,
+          size=3,
+          color="black",
+          fill="red3",
+          shape=21,
+          alpha=0.5)+
+  geom_text_repel(data = LOC,
+            aes(x=S, 
+                y=E,
+                label = sample,
+                group = sample),
+            color = 'white',
+            size  = 4,
+            max.overlaps = 18,
+            box.padding = 0.7, 
+            point.padding = 0.5) +
+  ggspatial::annotation_north_arrow(location="tr",
+                                    height = unit(0.5, "cm"),
+                                    width = unit(0.5, "cm"),)+
+  ggspatial::annotation_scale(location="bl")
+```
+
+# 2. Petrography
+
+Figure 4 includes petrographic classification (Total quartz, feldspar, lithics), lithics composition (Igneous, metamorphic and Sedimentary), and feldspar composition (Plagioclase, Orthoclase, Microcline).
+
+## 2.1 QFL
+
+```{r}
+  
+(QFL<-PT %>% 
+  ggtern(aes(x=f,y=qtz,z=lt))+
+  geom_point()+
+  labs(x="Feld-\n spars",
+       y="Total\n Quartz",
+       z="Total\n Lithics",
+       title=""))
+
+```
+
+## 2.2 Feldspars
+
+```{r}
+(FK<-PT %>% 
+  ggtern(aes(x=microcline,y=plagio,z=ortoclase))+
+  geom_point()+
+  labs(x="Micro- \n cline",
+       y="Igneous. \n lithics",
+       z="Orto- \n clase",
+       title=""))
+```
+
+## 2.3 Lithics
+
+```{r}
+(LT<-PT %>% 
+  ggtern::ggtern(aes(x=lit_sed,y=lit_ign,z=lit_met))+
+  geom_point()+
+  labs(x="Sed. \n lithics",
+       y="Igneous. \n lithics",
+       z="Met. \n lithics",
+       title=""))
+```
+
+# 3. Grain-size analysis
+
+Grain-size characteristics of Twyfelfountein Formation.
+
+```{r,warning=FALSE}
+GS %>% 
+  pivot_longer(cols=phi_1:phi_4,names_to="phi",values_to="values") %>% 
+  mutate(zone=factor(erg,labels=c("Main erg","Minor erg")),
+         phi=factor(phi,labels = c("Coarse Sand","Medium Sand",
+                                   "Fine Sand","Very Fine Sand"))) %>% 
+  ggplot(aes(fill=phi,y=fct_reorder(sample,erg),x=values))+
+  geom_bar(position="fill", 
+           stat="identity")+
+  scale_fill_brewer(palette = "Set1",direction=-1)+
+  labs(x=NULL,
+       y= "proportion (%)",
+       fill=NULL)+
+  theme(legend.position="bottom",axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+# 4. Heavy minerals
+
+Heavy mineral composition of Twyfelfountein Formation.
+
+## 4.1 Heavy minerals composition
+
+```{r}
+HM %>% 
+  group_by(sample,mineral) %>% 
+  count(mineral) %>% 
+  filter(!mineral %in% c("albite","K-feldspar") ) %>% 
+  mutate(mineral=factor(mineral,levels=c("Fe-Ti oxide","apatite","pyroxene","amphibole","titanite","epidote","garnet","tourmaline","zircon")),
+         sample=factor(sample,levels=c("PB-75","PB-73","PB-74","PB-72","PB-71","PB-68","PB-69","PB-70","PB-64","PB-63","PB-67","PB-66","PB-65","PB-60","PB-61","PB-62"))) %>% 
+  ggplot(aes(fill=mineral,y=sample,x=n))+
+  geom_bar(position="fill", 
+           stat="identity")+
+  scale_fill_brewer(palette = "Set1",direction=-1)+
+  labs(x=NULL,
+       y= "proportion (%)",
+       fill=NULL)+
+  theme(legend.position="bottom",axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+## 4.2 Garnet geochemistry (Fe+Mn,Mg, Ca)
+
+Diagrams from (Andò et al., 2014; 1985; Mange and Morton, 2007)
+
+```{r}
+
+ggarnet_mn()+
+  scale_fill_brewer(palette="Set3")+
+  geom_point(data=GT,
+             alpha=0.3,
+             size=1.0,
+             aes(x=Mn,y=Ca,z=Mg))
+
+
+```
+
+## 4.2 Garnet geochemistry (Mn,Mg, Ca)
+
+```{r}
+ggarnet_fe_mn()+
+  scale_fill_brewer(palette="Set3")+
+  geom_point(data=GT,
+             alpha=0.3,
+             size=1.0,
+             aes(x=Fe+Mn,y=Mg,z=Ca))
+```
+
+## 4.2 Tourmaline geochemistry (Fe+Mn,Mg, Ca)
+
+Diagrams from (Henry and Guidotti; Win et al., 2007)
+
+```{r}
+ggarnet_tourmaline()+
+    geom_point(data=TUR,aes(x=Fe,y=Al,z=Mg),
+               alpha=0.3)
+```
+
+# 5. Detrital zircon
+
+Detrital zircon U-Pb ages for Twyfelfoutein Formation.
+
+```{r}
+
+DZ %>% 
+  write.csv("./paper/dz.csv",
+            row.names = FALSE)
+
+dz<-read.distributional("./paper/dz.csv")  
+
+
+KDEs(dz,0,4000) %>% 
+  plot(.)
+```
+
+# 6. MDS plots with detrital zircon
+
+Multidimensional scalling plot of detrital zircon dataillustrating the lateral change from Southwast (SE) to Southewest (SW) Botucatu/Twyfelfontain Fms. Data from this work and @Bertolini2020 , @bertolini2021 , @canile2016 , @peri2016 , @zieger2020
+
+```{r}
+
+
+DZ_ALL %>% 
+  ggplot(aes(dimension1,dimension2))+
+  geom_point(aes(col=region),size=3)+
+  ggrepel::geom_text_repel(aes(label = sample))+
+theme_minimal()+
+ labs(x="MDS dimension 1",
+       y="MDS dimension 2",
+       title="MDS scalling with Kulmogorov-Sminov distances for detrital zircon ages")
+
+```
+
+# 7. Garnet and tourmaline regional plots
+
+Ternary plots of garnet (B), and tourmaline (C) within Botucatu Desert pooling samples that overlies the Gai-As, Krone (Namibia), Guará, Santa Maria and Pedreira Formations (Brazil and Uruguay).
+
+```{r}
+P1<-ggtern()+
+  scale_fill_brewer(palette="Set3")+
+  geom_point(data=GT_ALL,
+             alpha=0.9,
+             size=1.5,
+             shape=21,
+             aes(x=Fe+Mn,y=Ca,z=Mg,fill=Underlying))+
+   facet_wrap(~fct_relevel(Underlying, "Guará", "Santa Maria", "Pedreira", "Krone", "Gai-As"), nrow = 1) +
+
+  labs(color="Stratigrahic sampling position",
+       shape="")+
+  theme_minimal()+
+  guides(fill = guide_legend(override.aes = list(size = 4)),
+         shape = guide_legend(override.aes = list(size = 4)))
+
+
+# Tourmalinie
+
+P2<-ggtern()+
+  geom_point(data=TUR_ALL,
+             show.legend = FALSE,
+             alpha=0.8,
+             shape=21,
+             size=1.5,
+             aes(x=Fe,y=Al,z=Mg,fill=Underlying))+
+    scale_fill_brewer(palette="Set3")+
+   facet_wrap(~fct_relevel(Underlying, "Guará", "Santa Maria", "Pedreira", "Krone", "Gai-As"), nrow = 1) +
+    labs(color="Stratigrahic sampling position",
+       shape="")+
+  theme_minimal()+
+  guides(fill = guide_legend(override.aes = list(size = 4)),
+         shape = guide_legend(override.aes = list(size = 4)))
+
+
+P1+P2+patchwork::plot_layout(nrow=2,guides='collect')&
+  theme(legend.position='right')
+```
